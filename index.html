@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ほしぞらどうぶつ</title>
+<title>星空どうぶつえん</title>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#070a20;--panel:#0f1436;--ink:#c9c8dc;--dim:#6f76a8;--star:#d9bd78;--line:#7fe0ff;--btn:#1d2552;--btnink:#bfc6f0;
@@ -19,6 +19,16 @@ button.sec{background:var(--panel);color:var(--dim);border:1px solid #232b5e}
 button.tiny{align-self:center;background:transparent;color:#4a5180;font-size:12px;font-weight:500;padding:4px 10px}
 button.tiny:disabled{opacity:.6}
 button.sm{align-self:center;width:70%;font-size:14px;padding:10px;font-weight:500;color:#58608f;border-color:#1a2150}
+#menu{flex:1;display:flex;flex-direction:column;justify-content:center;gap:22px}
+.hero{position:relative;width:min(100%,50dvh);aspect-ratio:1/1;margin:0 auto}
+.bg{position:absolute;inset:0;pointer-events:none}
+.ht{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 8px;text-shadow:0 0 10px #070a20,0 0 4px #070a20}
+.ht h1{margin:0 0 12px}
+.ht p.sub{margin:0}
+.cg{position:absolute;inset:0;width:100%;height:100%;opacity:0;animation:cg 24s ease-in-out infinite}
+.cg line{stroke:#6bc4e0;stroke-width:2.2;stroke-linecap:round}
+.cg circle{fill:#ffe9a8}.cg .h{opacity:.2;fill:#ffd979}
+@keyframes cg{0%{opacity:0}13%{opacity:.34}26%{opacity:.34}34%,100%{opacity:0}}
 button.on{background:#17384a;color:#9fe3f5;border-color:#2f7a96}
 svg text{font-family:inherit;font-weight:700}
 .halo{opacity:0}
@@ -50,14 +60,21 @@ svg#sky{width:100%;height:auto;max-height:62dvh;background:radial-gradient(ellip
 </style></head><body><div id="app">
 
 <section id="menu">
-<h1>ほしぞらどうぶつ</h1>
-<p class="sub">星をつないで、どうぶつ座をつくろう。<br>だれかの星座を見て、なにか当てよう。</p>
+<div class="hero"><div class="bg">
+<svg class="cg" style="animation-delay:0s" viewBox="0 0 456 456" preserveAspectRatio="xMidYMid meet"><line x1="118" y1="83" x2="109" y2="175"/><line x1="109" y1="175" x2="47" y2="199"/><line x1="47" y1="199" x2="87" y2="297"/><line x1="87" y1="297" x2="148" y2="228"/><line x1="109" y1="175" x2="148" y2="228"/><line x1="148" y1="228" x2="246" y2="89"/><line x1="148" y1="228" x2="207" y2="243"/><line x1="207" y1="243" x2="269" y2="274"/><line x1="269" y1="274" x2="335" y2="300"/><line x1="335" y1="300" x2="408" y2="371"/><circle cx="118" cy="83" r="8.5" class="h"/><circle cx="118" cy="83" r="3.5"/><circle cx="109" cy="175" r="9.5" class="h"/><circle cx="109" cy="175" r="4.5"/><circle cx="47" cy="199" r="7.5" class="h"/><circle cx="47" cy="199" r="2.5"/><circle cx="87" cy="297" r="9.0" class="h"/><circle cx="87" cy="297" r="4.0"/><circle cx="148" cy="228" r="9.5" class="h"/><circle cx="148" cy="228" r="4.5"/><circle cx="246" cy="89" r="10.5" class="h"/><circle cx="246" cy="89" r="5.5"/><circle cx="207" cy="243" r="8.5" class="h"/><circle cx="207" cy="243" r="3.5"/><circle cx="269" cy="274" r="9.5" class="h"/><circle cx="269" cy="274" r="4.5"/><circle cx="335" cy="300" r="10.0" class="h"/><circle cx="335" cy="300" r="5.0"/><circle cx="408" cy="371" r="10.5" class="h"/><circle cx="408" cy="371" r="5.5"/></svg>
+<svg class="cg" style="animation-delay:8s" viewBox="0 0 467 467" preserveAspectRatio="xMidYMid meet"><line x1="166" y1="62" x2="309" y2="95"/><line x1="309" y1="95" x2="329" y2="182"/><line x1="329" y1="182" x2="386" y2="258"/><line x1="386" y1="258" x2="366" y2="322"/><line x1="366" y1="322" x2="301" y2="372"/><line x1="301" y1="372" x2="194" y2="378"/><line x1="194" y1="378" x2="141" y2="388"/><line x1="141" y1="388" x2="69" y2="290"/><line x1="69" y1="290" x2="117" y2="239"/><line x1="117" y1="239" x2="184" y2="310"/><line x1="184" y1="310" x2="194" y2="378"/><line x1="117" y1="239" x2="97" y2="181"/><line x1="97" y1="181" x2="166" y2="62"/><line x1="332" y1="253" x2="254" y2="295"/><circle cx="166" cy="62" r="8.5" class="h"/><circle cx="166" cy="62" r="3.5"/><circle cx="309" cy="95" r="8.0" class="h"/><circle cx="309" cy="95" r="3.0"/><circle cx="329" cy="182" r="9.0" class="h"/><circle cx="329" cy="182" r="4.0"/><circle cx="386" cy="258" r="10.0" class="h"/><circle cx="386" cy="258" r="5.0"/><circle cx="366" cy="322" r="8.0" class="h"/><circle cx="366" cy="322" r="3.0"/><circle cx="301" cy="372" r="9.0" class="h"/><circle cx="301" cy="372" r="4.0"/><circle cx="194" cy="378" r="9.5" class="h"/><circle cx="194" cy="378" r="4.5"/><circle cx="141" cy="388" r="8.5" class="h"/><circle cx="141" cy="388" r="3.5"/><circle cx="184" cy="310" r="10.5" class="h"/><circle cx="184" cy="310" r="5.5"/><circle cx="117" cy="239" r="10.0" class="h"/><circle cx="117" cy="239" r="5.0"/><circle cx="97" cy="181" r="9.5" class="h"/><circle cx="97" cy="181" r="4.5"/><circle cx="69" cy="290" r="8.0" class="h"/><circle cx="69" cy="290" r="3.0"/><circle cx="332" cy="253" r="9.5" class="h"/><circle cx="332" cy="253" r="4.5"/><circle cx="254" cy="295" r="8.5" class="h"/><circle cx="254" cy="295" r="3.5"/></svg>
+<svg class="cg" style="animation-delay:16s" viewBox="0 0 483 483" preserveAspectRatio="xMidYMid meet"><line x1="168" y1="110" x2="187" y2="184"/><line x1="187" y1="184" x2="260" y2="203"/><line x1="260" y1="203" x2="312" y2="144"/><line x1="312" y1="144" x2="332" y2="231"/><line x1="332" y1="231" x2="336" y2="301"/><line x1="336" y1="301" x2="257" y2="343"/><line x1="257" y1="343" x2="187" y2="359"/><line x1="187" y1="359" x2="120" y2="288"/><line x1="120" y1="288" x2="99" y2="229"/><line x1="99" y1="229" x2="168" y2="110"/><circle cx="168" cy="110" r="9.5" class="h"/><circle cx="168" cy="110" r="4.5"/><circle cx="187" cy="184" r="7.5" class="h"/><circle cx="187" cy="184" r="2.5"/><circle cx="260" cy="203" r="10.0" class="h"/><circle cx="260" cy="203" r="5.0"/><circle cx="312" cy="144" r="8.5" class="h"/><circle cx="312" cy="144" r="3.5"/><circle cx="332" cy="231" r="9.5" class="h"/><circle cx="332" cy="231" r="4.5"/><circle cx="336" cy="301" r="9.5" class="h"/><circle cx="336" cy="301" r="4.5"/><circle cx="257" cy="343" r="9.0" class="h"/><circle cx="257" cy="343" r="4.0"/><circle cx="187" cy="359" r="10.5" class="h"/><circle cx="187" cy="359" r="5.5"/><circle cx="120" cy="288" r="10.0" class="h"/><circle cx="120" cy="288" r="5.0"/><circle cx="99" cy="229" r="9.5" class="h"/><circle cx="99" cy="229" r="4.5"/></svg>
+</div>
+<div class="ht">
+<h1>星空どうぶつえん</h1>
+<p class="sub">ここは夜空にまたたく動物園<br>様々などうぶつの星座を発見し、<br>みんなに教えてあげましょう<br>ごゆっくり、夜をお過ごしください</p>
+</div></div>
 <div style="display:flex;flex-direction:column;gap:12px">
 <button class="big" id="goMake">星座をさがす（つくる）</button>
 <button class="big" id="goQuiz">夜空をながめる（あてる）</button>
 <button class="sec sm" id="goReview">ふりかえる</button>
 </div>
-<p class="sub" id="count" style="margin-top:28px;font-size:11px;color:#383f6c"></p>
+<p class="sub" id="count" style="margin:0;font-size:11px;color:#383f6c"></p>
 </section>
 
 <section id="make" class="hide" style="display:flex;flex-direction:column;gap:8px">
@@ -99,7 +116,7 @@ const firebaseConfig={
   measurementId:"G-2CK8D19JB3"
 };
 // ---- データ ----
-const ANIMALS=[["いぬ"],["ねこ"],["あひる"],["ごりら"],["ぞう"],["きりん"],["うさぎ"],["ぺんぎん"],["さかな"],["へび"],["かめ"],["くま"],["かに"],["たこ"],["ちょう"],["ぶた"]];
+const ANIMALS=[["いぬ"],["ねこ"],["あひる"],["ごりら"],["ぞう"],["きりん"],["うさぎ"],["ぺんぎん"],["さかな"],["へび"],["かめ"],["くま"],["かに"],["たこ"],["ちょう"],["ぶた"],["きつね"],["はくちょう"],["うし"],["さる"],["らいおん"],["しか"],["ふくろう"],["かば"],["ひつじ"],["うま"],["わに"],["くじら"],["かえる"],["ねずみ"],["らくだ"],["いるか"]];
 // 星配置パターン10個(0〜9)。通信では整数1つだけ送る想定。
 const SEEDS=[1203,4471,9027,2318,7766,5151,8890,3342,6609,1987];
 function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
@@ -133,14 +150,17 @@ const Remote={
  async report(id){const ref=doc(db,"constellations",id);await updateDoc(ref,{reports:increment(1)});const s=await getDoc(ref);if(s.exists()&&s.data().reports>=REPORT_LIMIT)await deleteDoc(ref)},
  async notified(items){for(const it of items){if((it.views||0)>(it.nViews||0)||(it.solves||0)>(it.nSolves||0))await updateDoc(doc(db,"constellations",it.id),{nViews:it.views||0,nSolves:it.solves||0})}}
 };
-let DB=Local;
-async function goOnline(){try{
+let DB=Local,connecting=false;
+// オフライン中に作った星座を、つながったらサーバーへ送る（送れたものから端末内を消す）
+async function syncLocal(){for(const x of lload().filter(y=>y.mine!==false)){try{await Remote.add(x);lsave(lload().filter(y=>y.id!==x.id))}catch(e){console.warn(e);break}}}
+async function goOnline(){if(connecting)return;connecting=true;try{
   if(!navigator.onLine)throw new Error("offline");
   if(!app)app=initializeApp(firebaseConfig);
   const auth=getAuth(app);
   await Promise.race([signInAnonymously(auth),new Promise((_,j)=>setTimeout(()=>j(new Error("timeout")),8000))]);
-  uid=auth.currentUser.uid;db=getFirestore(app);col=collection(db,"constellations");DB=Remote;STATUS="オンライン状態です";
+  uid=auth.currentUser.uid;db=getFirestore(app);col=collection(db,"constellations");DB=Remote;STATUS="オンライン状態です";syncLocal();
  }catch(e){console.warn(e);DB=Local;STATUS="オフライン状態です"}
+ connecting=false;
  if(!$("menu").classList.contains("hide"))$("count").textContent=STATUS}
 // ---- 共通 ----
 const $=id=>document.getElementById(id),NS="http://www.w3.org/2000/svg";
@@ -196,7 +216,9 @@ async function loadQuiz(){const tok=++QTok;let c=null,err=false;
   $("qText").textContent=err?"星座をよみこめませんでした。":"まだ星座がありません。先に「星座をさがす」でつくってね。";$("again").classList.add("hide");$("report").classList.add("hide");return}
  // 6種：正解を含む6つの動物をランダム順に
  const others=ANIMALS.map((_,i)=>i).filter(i=>i!==c.animal).sort(()=>Math.random()-.5).slice(0,5);
- const pool=others;pool.splice(rnd(6),0,c.animal);
+ // 正解が最初に選択肢へ出る質問の確率：1問目10%（2枠で5%ずつ）、2問目15%、3問目20%、4問目25%、5問目30%
+ const W=[5,5,15,20,25,30];let x=Math.random()*100,slot=0;for(;slot<5&&x>=W[slot];slot++)x-=W[slot];
+ const pool=others;pool.splice(slot,0,c.animal);
  Q={c,pool,n:0,cur:pool[0]};
  DB.inc(c.id,"views").catch(()=>{});$("report").classList.remove("hide");$("report").disabled=false;$("report").textContent="よくない星座かも";
  draw($("sky2"),c.pattern,c.lines,-1,null);
@@ -248,8 +270,10 @@ async function checkNotify(){let mine;try{mine=await DB.mine()}catch(e){return}
  let msg=null;if(sol.length)msg="誰かがあなたの"+ANIMALS[sol[0].animal][0]+"座を見つけました";else if(vw)msg="誰かがあなたの星座を見たようです";
  if(!msg)return;notify(msg);try{await DB.notified(mine)}catch(e){console.warn(e)}}
 // ---- 起動 ----
-const MB=["goMake","goQuiz","goReview"];
+const MB=["goQuiz","goReview"];
 show("menu");MB.forEach(i=>$(i).disabled=true);$("count").textContent="つなげています";
 goOnline().then(()=>{MB.forEach(i=>$(i).disabled=false);setTimeout(checkNotify,300)});
+// つながっていない間も裏で接続をやり直し続ける
+setInterval(async()=>{if(DB===Local&&!connecting){await goOnline();if(DB===Remote)checkNotify()}},15000);
 window.addEventListener("online",async()=>{if(DB===Local)await goOnline();checkNotify()});
 </script></body></html>
