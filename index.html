@@ -82,8 +82,9 @@ svg#sky{width:100%;height:auto;max-height:62dvh;background:radial-gradient(ellip
 <div class="top"><button class="sec" data-back>もどる</button><div class="task" id="task"></div><span id="mCnt"></span></div>
 <svg id="sky" viewBox="0 0 300 400"></svg>
 <div class="hint" id="mHint">星を2つ、つづけてタップすると線がひけるよ</div>
-<div class="row"><button class="sec" id="undo">ひとつ戻す</button><button class="sec" id="clear">全部消す</button><button class="sec" id="chain">線を連続で：OFF</button></div>
+<div class="row" id="tools"><button class="sec" id="undo">ひとつ戻す</button><button class="sec" id="clear">全部消す</button><button class="sec" id="chain">線を連続で：OFF</button></div>
 <button id="found" disabled>星座発見</button>
+<div class="row hide" id="after"><button id="nextBtn" style="flex:2">次へ</button><button class="sec" id="shareBtn" style="flex:1">共有する</button></div>
 </section>
 
 <section id="quiz" class="hide" style="display:flex;flex-direction:column;gap:8px">
@@ -194,17 +195,42 @@ $("undo").onclick=()=>{if(M.lines.length)M.lines.pop();M.sel=-1;rm()};
 $("clear").onclick=()=>{M.lines=[];M.sel=-1;rm()};
 $("chain").onclick=()=>{CH=!CH;if(busy){}else M.sel=-1;$("chain").textContent="線を連続で："+(CH?"ON":"OFF");$("chain").classList.toggle("on",CH);if(!busy)rm()};
 function later(f,ms){T.push(setTimeout(f,ms))}
-function cancelSeq(){T.forEach(clearTimeout);T=[];busy=false;const tk=$("task");tk.classList.remove("glowin");tk.style.transition="none";tk.style.opacity=1;const k=$("sky");k.style.transition="none";k.style.opacity=1;k.classList.remove("glow")}
+let SBp=null; // 共有用の画像（PNG）を作る処理
+function setAfter(on){$("tools").classList.toggle("hide",on);$("found").classList.toggle("hide",on);$("after").classList.toggle("hide",!on)}
+function cancelSeq(){T.forEach(clearTimeout);T=[];busy=false;SBp=null;setAfter(false);const tk=$("task");tk.classList.remove("glowin");tk.style.transition="none";tk.style.opacity=1;const k=$("sky");k.style.transition="none";k.style.opacity=1;k.classList.remove("glow")}
 $("found").onclick=()=>{if(busy||M.lines.length<2)return;
  repStreakReset();DB.add({pattern:M.pat,animal:M.an,lines:M.lines.map(l=>l.slice())}).catch(e=>console.warn(e));
- const nm=ANIMALS[M.an][0],sky=$("sky");
+ const nm=ANIMALS[M.an][0],sky=$("sky"),pat=M.pat,ln=M.lines.map(l=>l.slice());
  busy=true;M.sel=-1;rm();
  const t=el("text",{x:150,y:36,"text-anchor":"middle","font-size":26,fill:"#ffe9a8",stroke:"#070a20","stroke-width":4,"paint-order":"stroke"});
  t.textContent=nm+"座";t.style.opacity=0;t.style.transition="opacity 1s";sky.appendChild(t);
  later(()=>{t.style.opacity=1;sky.classList.add("glow")},50);
- later(()=>{sky.style.transition="opacity 1.8s";sky.style.opacity=0;const tk=$("task");tk.classList.remove("glowin");tk.style.transition="opacity 1.8s";tk.style.opacity=0},3000);
- later(()=>{sky.classList.remove("glow");newTask();sky.style.opacity=1},4900);
- later(()=>{busy=false;rm()},5800)};
+ setAfter(true);$("nextBtn").disabled=false;
+ SBp=makeImage(pat,ln);SBp.catch(e=>console.warn(e))};
+// 「次へ」：星座をゆっくり消して、新しいお題へ
+$("nextBtn").onclick=()=>{if(!busy||$("nextBtn").disabled)return;$("nextBtn").disabled=true;const sky=$("sky"),tk=$("task");
+ sky.style.transition="opacity 1.8s";sky.style.opacity=0;tk.classList.remove("glowin");tk.style.transition="opacity 1.8s";tk.style.opacity=0;
+ later(()=>{sky.classList.remove("glow");setAfter(false);newTask();sky.style.opacity=1},1900);
+ later(()=>{busy=false;rm()},2800)};
+// 共有用の画像：星空と星座だけ（お題の名前は入れない）
+async function makeImage(pat,lines){
+ const sv=el("svg",{viewBox:"0 0 300 400",width:600,height:800});
+ draw(sv,pat,lines,-1,null);sv.querySelectorAll(".halo").forEach(e=>e.remove());
+ const d=el("defs",{}),g=el("radialGradient",{id:"bg",cx:"50%",cy:"100%",r:"75%"});
+ g.appendChild(el("stop",{offset:"0","stop-color":"#161c4a"}));g.appendChild(el("stop",{offset:"1","stop-color":"#070a20"}));d.appendChild(g);
+ sv.insertBefore(el("rect",{width:300,height:400,fill:"url(#bg)"}),sv.firstChild);sv.insertBefore(d,sv.firstChild);
+ const url="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(new XMLSerializer().serializeToString(sv));
+ const img=new Image();await new Promise((ok,ng)=>{img.onload=ok;img.onerror=ng;img.src=url});
+ const c=document.createElement("canvas");c.width=600;c.height=800;c.getContext("2d").drawImage(img,0,0,600,800);
+ return await new Promise((ok,ng)=>c.toBlob(b=>b?ok(b):ng(new Error("toBlob")),"image/png"))}
+// 「共有する」：画像つきで共有。使えない環境では画像を保存してXの投稿画面を開く
+$("shareBtn").onclick=async()=>{const b=await (SBp||Promise.resolve(null)).catch(()=>null);
+ const text="星空でどうぶつの星座をみつけました。\n何座かわかりますか？\n\n#星空どうぶつえん\n"+location.origin+location.pathname;
+ if(b){const f=new File([b],"seiza.png",{type:"image/png"});
+  if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],text});return}catch(e){if(e&&e.name==="AbortError")return}}
+  const u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download="seiza.png";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+  $("mHint").textContent="画像を保存しました。投稿に添付してください"}
+ window.open("https://twitter.com/intent/tweet?text="+encodeURIComponent(text),"_blank","noopener")};
 // ---- クイズモード ----
 let Q={};
 let QTok=0;
