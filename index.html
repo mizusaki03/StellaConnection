@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ほしぞらどうぶつ</title>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#070a20;--panel:#0f1436;--ink:#c9c8dc;--dim:#6f76a8;--star:#d9bd78;--line:#7fe0ff;--btn:#1d2552;--btnink:#bfc6f0;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#070a20}}
+:root[data-theme="dark"]{--bg:#070a20}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Hiragino Sans",sans-serif;font-weight:500;min-height:100dvh;display:flex;justify-content:center}
+#app{width:100%;max-width:480px;padding:10px 10px 28px;display:flex;flex-direction:column;gap:8px}
+h1{font-size:30px;margin:24px 0 4px;text-align:center;letter-spacing:.08em}
+p.sub{color:var(--dim);text-align:center;margin:0 0 20px;line-height:1.7}
+button{font:inherit;font-weight:700;border:0;border-radius:12px;padding:10px;background:var(--btn);color:var(--btnink);font-size:15px;cursor:pointer}
+button.sec{background:var(--panel);color:var(--dim);border:1px solid #232b5e}
+button.tiny{align-self:center;background:transparent;color:#4a5180;font-size:12px;font-weight:500;padding:4px 10px}
+button.tiny:disabled{opacity:.6}
+button.on{background:#17384a;color:#9fe3f5;border-color:#2f7a96}
+svg text{font-family:inherit;font-weight:700}
+.halo{opacity:0}
+.glow .cl{animation:gl 2.4s ease-in-out}
+@keyframes gl{50%{stroke:#e2f8ff;stroke-width:4.5}}
+.glow .halo{animation:hl 2.4s ease-in-out}
+@keyframes hl{0%,100%{opacity:0}50%{opacity:.55}}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.card{background:var(--panel);border-radius:14px;padding:8px}
+.meta{font-size:12px;color:var(--dim);line-height:1.6;margin-top:6px}
+.meta b{font-size:15px;color:var(--ink)}
+#note{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 10px);max-width:456px;margin:0 auto;background:#131a44;color:var(--ink);border:1px solid #2a3470;border-radius:14px;padding:12px 14px;text-align:center;font-size:14px;opacity:0;pointer-events:none;transition:opacity 1.2s;z-index:10}
+#note.on{opacity:1;pointer-events:auto}
+button:disabled{opacity:.35}
+button:focus-visible{outline:3px solid var(--line);outline-offset:2px}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.top{display:flex;justify-content:space-between;align-items:center;color:var(--dim);font-size:14px}
+.top button{padding:6px 12px;font-size:14px}
+.task{text-align:center;font-size:14px;color:var(--ink)}
+.task b{font-size:18px}
+svg#sky{width:100%;height:auto;max-height:62dvh;background:radial-gradient(ellipse at 50% 100%,#161c4a,#070a20 70%);border-radius:16px;touch-action:manipulation;display:block}
+.hint{color:var(--dim);font-size:12px;text-align:center;min-height:16px}
+.result{text-align:center;font-size:24px;font-weight:700;padding:4px;color:var(--star)}
+.q{text-align:center;color:var(--dim)}
+.big{font-size:18px;padding:16px}
+.hide{display:none!important}
+</style></head><body><div id="app">
+
+<section id="menu">
+<h1>ほしぞらどうぶつ</h1>
+<p class="sub">星をつないで、どうぶつ座をつくろう。<br>だれかの星座を見て、なにか当てよう。</p>
+<div style="display:flex;flex-direction:column;gap:12px">
+<button class="big" id="goMake">星座をさがす（つくる）</button>
+<button class="big sec" id="goQuiz">夜空をながめる（あてる）</button>
+<button class="big sec" id="goReview">ふりかえる</button>
+</div>
+<p class="sub" id="count" style="margin-top:20px"></p>
+</section>
+
+<section id="make" class="hide" style="display:flex;flex-direction:column;gap:8px">
+<div class="top"><button class="sec" data-back>もどる</button><div class="task" id="task"></div><span id="mCnt"></span></div>
+<svg id="sky" viewBox="0 0 300 400"></svg>
+<div class="hint" id="mHint">星を2つ、つづけてタップすると線がひけるよ</div>
+<div class="row"><button class="sec" id="undo">ひとつ戻す</button><button class="sec" id="clear">全部消す</button><button class="sec" id="chain">線を連続で：OFF</button></div>
+<button id="found" disabled>星座発見</button>
+</section>
+
+<section id="quiz" class="hide" style="display:flex;flex-direction:column;gap:8px">
+<div class="top"><button class="sec" data-back>もどる</button><span id="qNum"></span></div>
+<svg id="sky2" viewBox="0 0 300 400" style="width:100%;height:auto;max-height:62dvh;background:radial-gradient(ellipse at 50% 100%,#161c4a,#070a20 70%);border-radius:16px;display:block"></svg>
+<div class="q" id="qText"></div>
+<div class="row" id="choices"></div>
+<button class="tiny" id="report">よくない星座かも</button>
+<div class="result hide" id="res"></div>
+<button class="hide" id="again">もういちど</button>
+</section>
+
+<section id="review" class="hide">
+<div class="top"><button class="sec" data-back>もどる</button><span>つくった星座</span></div>
+<div class="grid" id="rList" style="margin-top:10px"></div>
+</section>
+
+</div>
+<div id="note"></div>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getAuth,signInAnonymously} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {getFirestore,collection,addDoc,doc,getDoc,getDocs,updateDoc,deleteDoc,increment,query,where,orderBy,limit} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+const firebaseConfig={
+  apiKey:"AIzaSyCwrOgbfYnXIGlBPOLmJt3qTtjjeDW6dUE",
+  authDomain:"stella-animal.firebaseapp.com",
+  projectId:"stella-animal",
+  storageBucket:"stella-animal.firebasestorage.app",
+  messagingSenderId:"1072549755977",
+  appId:"1:1072549755977:web:ae8d17e6074b3842061398",
+  measurementId:"G-2CK8D19JB3"
+};
+// ---- データ ----
+const ANIMALS=[["いぬ"],["ねこ"],["あひる"],["ごりら"],["ぞう"],["きりん"],["うさぎ"],["ぺんぎん"],["さかな"],["へび"],["かめ"],["くま"],["かに"],["たこ"],["ちょう"],["ぶた"]];
+// 星配置パターン10個(0〜9)。通信では整数1つだけ送る想定。
+const SEEDS=[1203,4471,9027,2318,7766,5151,8890,3342,6609,1987];
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const PAT=SEEDS.map(s=>{const r=rng(s),p=[];for(let i=0;i<3000&&p.length<42;i++){const x=18+r()*264,y=18+r()*364;if(p.every(q=>Math.hypot(q.x-x,q.y-y)>30))p.push({x,y,r:2+r()*2.6})}return p});
+// ---- 保存先：Firestore（オンライン）／localStorage（オフライン） ----
+// どちらも同じ形で使えるようにしてある：add / random / mine / inc / report / notified
+const REPORT_LIMIT=2,STREAK_MAX=3,KEY="seiza_v1";
+let STATUS="";
+function lload(){let a=[];try{a=JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){a=window._mem||[]}return a.map(x=>({...x,id:x.id||String(x.at)}))}
+function lsave(a){window._mem=a;try{localStorage.setItem(KEY,JSON.stringify(a))}catch(e){}}
+const Local={
+ async add(it){const a=lload(),t=Date.now();a.push({...it,at:t,id:String(t),mine:true,views:0,solves:0,reports:0,nViews:0,nSolves:0});lsave(a)},
+ async random(){const a=lload();return a.length?a[rnd(a.length)]:null},
+ async mine(){return lload()},
+ async inc(id,f){const a=lload(),x=a.find(y=>y.id===id);if(x){x[f]=(x[f]||0)+1;lsave(a)}},
+ async report(id){const a=lload(),k=a.findIndex(y=>y.id===id);if(k<0)return;a[k].reports=(a[k].reports||0)+1;if(a[k].reports>=REPORT_LIMIT)a.splice(k,1);lsave(a)},
+ async notified(items){const a=lload();items.forEach(it=>{const x=a.find(y=>y.id===it.id);if(x){x.nViews=it.views||0;x.nSolves=it.solves||0}});lsave(a)}
+};
+let app=null,db=null,uid=null,col=null;
+function norm(d){const x=d.data(),l=[];for(let i=0;i+1<x.lines.length;i+=2)l.push([x.lines[i],x.lines[i+1]]);return {...x,id:d.id,lines:l,at:x.createdAt,mine:x.owner===uid}}
+const Remote={
+ async add(it){await addDoc(col,{owner:uid,pattern:it.pattern,animal:it.animal,lines:it.lines.flat(),random:Math.random(),createdAt:Date.now(),views:0,solves:0,reports:0,nViews:0,nSolves:0})},
+ // 乱数フィールドで「だいたいランダムな1件」を取る。他の人の星座を優先
+ async random(){const r=Math.random();
+  let s=await getDocs(query(col,where("random",">=",r),orderBy("random"),limit(10)));
+  if(s.empty)s=await getDocs(query(col,where("random","<",r),orderBy("random","desc"),limit(10)));
+  const l=s.docs.map(norm);if(!l.length)return null;const o=l.filter(x=>!x.mine),p=o.length?o:l;return p[rnd(p.length)]},
+ async mine(){const s=await getDocs(query(col,where("owner","==",uid)));return s.docs.map(norm)},
+ async inc(id,f){await updateDoc(doc(db,"constellations",id),{[f]:increment(1)})},
+ // 通報ポイント+1。2に達したら削除を送る
+ async report(id){const ref=doc(db,"constellations",id);await updateDoc(ref,{reports:increment(1)});const s=await getDoc(ref);if(s.exists()&&s.data().reports>=REPORT_LIMIT)await deleteDoc(ref)},
+ async notified(items){for(const it of items){if((it.views||0)>(it.nViews||0)||(it.solves||0)>(it.nSolves||0))await updateDoc(doc(db,"constellations",it.id),{nViews:it.views||0,nSolves:it.solves||0})}}
+};
+let DB=Local;
+async function goOnline(){try{
+  if(!navigator.onLine)throw new Error("offline");
+  if(!app)app=initializeApp(firebaseConfig);
+  const auth=getAuth(app);
+  await Promise.race([signInAnonymously(auth),new Promise((_,j)=>setTimeout(()=>j(new Error("timeout")),8000))]);
+  uid=auth.currentUser.uid;db=getFirestore(app);col=collection(db,"constellations");DB=Remote;STATUS="オンライン";
+ }catch(e){console.warn(e);DB=Local;STATUS="オフライン（この端末だけで遊べます）"}
+ if(!$("menu").classList.contains("hide"))$("count").textContent=STATUS}
+// ---- 共通 ----
+const $=id=>document.getElementById(id),NS="http://www.w3.org/2000/svg";
+const rnd=n=>Math.floor(Math.random()*n);
+function show(id){cancelSeq();cancelQuiz();["menu","make","quiz","review"].forEach(s=>$(s).classList.toggle("hide",s!==id));if(id==="menu")$("count").textContent=STATUS}
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e}
+function draw(svg,pat,lines,sel,onTap){svg.innerHTML="";
+ lines.forEach(([a,b])=>svg.appendChild(el("line",{x1:PAT[pat][a].x,y1:PAT[pat][a].y,x2:PAT[pat][b].x,y2:PAT[pat][b].y,stroke:"#6bc4e0","stroke-width":2.2,"stroke-linecap":"round","class":"cl"})));
+ const used=new Set(lines.flat());
+ PAT[pat].forEach((s,i)=>{const on=i===sel,u=used.has(i);
+  if(u)svg.appendChild(el("circle",{cx:s.x,cy:s.y,r:s.r+7,fill:"#ffe9a8","class":"halo"}));
+  svg.appendChild(el("circle",{cx:s.x,cy:s.y,r:s.r+(on?6:3.5),fill:on?"#7fe0ff":"#ffd979",opacity:on?.5:u?.18:.06}));
+  svg.appendChild(el("circle",{cx:s.x,cy:s.y,r:s.r,fill:on?"#fff":u?"#ffe9a8":"#7a7690"}));
+  if(onTap){const h=el("circle",{cx:s.x,cy:s.y,r:15,fill:"transparent"});h.style.cursor="pointer";h.addEventListener("click",()=>onTap(i));svg.appendChild(h)}})}
+document.querySelectorAll("[data-back]").forEach(b=>b.onclick=()=>show("menu"));
+$("goReview").onclick=()=>{show("review");renderReview()};
+$("goMake").onclick=startMake;$("goQuiz").onclick=startQuiz;
+// ---- 作問モード ----
+let M={},CH=false,busy=false,T=[],QT=[];
+function startMake(){show("make");newTask()}
+function newTask(){M={pat:rnd(PAT.length),an:rnd(ANIMALS.length),lines:[],sel:-1};
+ $("task").innerHTML="お題：<b>"+ANIMALS[M.an][0]+"</b>";rm()}
+function rm(){draw($("sky"),M.pat,M.lines,M.sel,tapMake);$("found").disabled=M.lines.length<2||busy;$("undo").disabled=$("clear").disabled=busy;
+ $("mCnt").textContent="線："+M.lines.length+"本";
+ $("mHint").textContent=busy?"":M.sel<0?"星を2つ、つづけてタップすると線がひけるよ":"もうひとつ星をタップ（同じ星でキャンセル）"}
+function tapMake(i){if(busy)return;if(M.sel<0){M.sel=i}else if(M.sel===i){M.sel=-1}else{const a=Math.min(M.sel,i),b=Math.max(M.sel,i);
+  const k=M.lines.findIndex(l=>l[0]===a&&l[1]===b);if(k>=0)M.lines.splice(k,1);else M.lines.push([a,b]);M.sel=CH?i:-1}rm()}
+$("undo").onclick=()=>{if(M.lines.length)M.lines.pop();M.sel=-1;rm()};
+$("clear").onclick=()=>{M.lines=[];M.sel=-1;rm()};
+$("chain").onclick=()=>{CH=!CH;if(busy){}else M.sel=-1;$("chain").textContent="線を連続で："+(CH?"ON":"OFF");$("chain").classList.toggle("on",CH);if(!busy)rm()};
+function later(f,ms){T.push(setTimeout(f,ms))}
+function cancelSeq(){T.forEach(clearTimeout);T=[];busy=false;const k=$("sky");k.style.transition="none";k.style.opacity=1;k.classList.remove("glow")}
+$("found").onclick=()=>{if(busy||M.lines.length<2)return;
+ repStreakReset();DB.add({pattern:M.pat,animal:M.an,lines:M.lines.map(l=>l.slice())}).catch(e=>console.warn(e));
+ const nm=ANIMALS[M.an][0],sky=$("sky");
+ busy=true;M.sel=-1;rm();
+ const t=el("text",{x:150,y:36,"text-anchor":"middle","font-size":26,fill:"#ffe9a8",stroke:"#070a20","stroke-width":4,"paint-order":"stroke"});
+ t.textContent=nm+"座";t.style.opacity=0;t.style.transition="opacity 1s";sky.appendChild(t);
+ later(()=>{t.style.opacity=1;sky.classList.add("glow")},50);
+ later(()=>{sky.style.transition="opacity 1.8s";sky.style.opacity=0},3000);
+ later(()=>{sky.classList.remove("glow");newTask();sky.style.opacity=1},4900);
+ later(()=>{busy=false;rm()},5800)};
+// ---- クイズモード ----
+let Q={};
+let QTok=0;
+function startQuiz(){show("quiz");["sky2","qText","qNum","choices"].forEach(i=>$(i).innerHTML=i==="sky2"||i==="choices"||i==="qNum"||i==="qText"?"":"");
+ $("res").classList.add("hide");$("again").classList.add("hide");$("report").classList.add("hide");loadQuiz()}
+async function loadQuiz(){const tok=++QTok;let c=null,err=false;
+ try{c=await DB.random()}catch(e){console.warn(e);err=true}
+ if(tok!==QTok)return;
+ if(!c){Q={};$("sky2").innerHTML="";$("qNum").textContent="";$("choices").innerHTML="";$("res").classList.add("hide");
+  $("qText").textContent=err?"星座をよみこめませんでした。":"まだ星座がありません。先に「星座をさがす」でつくってね。";$("again").classList.add("hide");$("report").classList.add("hide");return}
+ // 6種：正解を含む6つの動物をランダム順に
+ const others=ANIMALS.map((_,i)=>i).filter(i=>i!==c.animal).sort(()=>Math.random()-.5).slice(0,5);
+ const pool=others;pool.splice(rnd(6),0,c.animal);
+ Q={c,pool,n:0,cur:pool[0]};
+ DB.inc(c.id,"views").catch(()=>{});$("report").classList.remove("hide");$("report").disabled=false;$("report").textContent="よくない星座かも";
+ draw($("sky2"),c.pattern,c.lines,-1,null);
+ $("res").classList.add("hide");$("again").classList.add("hide");ask()}
+function ask(){$("qNum").textContent="しつもん 1 / 5";$("qText").textContent="これは、どっちかな？";
+ Q.slot=[Q.pool[0],Q.pool[1]];Q.lock=false;
+ const ch=$("choices");ch.innerHTML="";
+ [0,1].forEach(k=>{const b=document.createElement("button");b.className="big";b.textContent=ANIMALS[Q.slot[k]][0];b.style.transition="opacity .9s";b.onclick=()=>pick(k);ch.appendChild(b)})}
+function pick(k){if(Q.lock)return;const q=Q,i=Q.slot[k];Q.cur=i;Q.n++;
+ if(Q.n>=5){$("choices").innerHTML="";$("qNum").textContent="けっか";$("qText").textContent="";
+  repSolved();const ok=i===Q.c.animal,r=$("res");if(ok)DB.inc(Q.c.id,"solves").catch(()=>{});r.classList.remove("hide");
+  r.textContent=ANIMALS[i][0]+(ok?"座だ":"座かもしれない");$("again").classList.remove("hide");$("report").classList.add("hide");return}
+ Q.lock=true;const o=$("choices").children[1-k];
+ $("qNum").textContent="しつもん "+(Q.n+1)+" / 5";$("qText").textContent=ANIMALS[i][0]+"かな？";
+ o.style.opacity=0;
+ setTimeout(()=>{if(Q!==q)return;const nx=q.pool[q.n+1];q.slot[1-k]=nx;o.textContent=ANIMALS[nx][0];o.style.opacity=1},1000);
+ setTimeout(()=>{if(Q===q&&!q.moving)q.lock=false},1900)}
+// 通報：1回で通報ポイント+1、REPORT_LIMIT に達したらそのお題を削除（DB.report の中で処理）
+// 連続通報の制限：同じ端末から連続で3回までしか通報を反映しない（4回目以降は表示だけ通常どおり）
+// 通報後に「2問解く」か「星座を1つ作る」とカウントをリセット
+function rget(){try{return JSON.parse(localStorage.getItem("seiza_rep")||"{}")}catch(e){return window._rep||{}}}
+function rset(o){window._rep=o;try{localStorage.setItem("seiza_rep",JSON.stringify(o))}catch(e){}}
+function repStreakReset(){rset({streak:0,solved:0})}
+function repSolved(){const o=rget();if(!o.streak)return;o.solved=(o.solved||0)+1;if(o.solved>=2)return repStreakReset();rset(o)}
+function repTry(id){const o=rget();o.streak=(o.streak||0)+1;o.solved=0;rset(o);if(o.streak<=STREAK_MAX)DB.report(id).catch(e=>console.warn(e))}
+const QE=()=>["sky2","qText","choices","res","again","qNum"].map($);
+function cancelQuiz(){QTok++;QT.forEach(clearTimeout);QT=[];QE().forEach(e=>{e.style.transition="none";e.style.opacity=1})}
+// 今の問題をフェードアウト→新しい問題をフェードイン（通報・もういちど共通）
+function nextQuiz(){if(Q.moving)return;Q.moving=true;Q.lock=true;const es=QE();
+ es.forEach(e=>{e.style.transition="opacity 1.4s";e.style.opacity=0});
+ QT.push(setTimeout(async()=>{await loadQuiz();es.forEach(e=>{e.style.opacity=1})},1500))}
+$("report").onclick=()=>{if(!Q.c||Q.moving)return;repTry(Q.c.id);$("report").disabled=true;$("report").textContent="報告したよ";nextQuiz()};
+$("again").onclick=nextQuiz;
+// ---- ふりかえり ----
+async function renderReview(){const g=$("rList");g.innerHTML='<p class="sub" style="grid-column:1/3">よみこみ中</p>';let a=[];try{a=(await DB.mine()).sort((p,q)=>q.at-p.at)}catch(e){console.warn(e)}g.innerHTML="";
+ if(!a.length){g.innerHTML='<p class="sub" style="grid-column:1/3">まだ星座がありません</p>';return}
+ a.forEach(x=>{const c=document.createElement("div");c.className="card";
+  const sv=el("svg",{viewBox:"0 0 300 400"});sv.style.cssText="width:100%;height:auto;display:block;border-radius:10px;background:radial-gradient(ellipse at 50% 100%,#161c4a,#070a20 70%)";
+  draw(sv,x.pattern,x.lines,-1,null);
+  const d=new Date(x.at),t=document.createElement("div");t.className="meta";
+  t.innerHTML="<b>"+ANIMALS[x.animal][0]+"座</b><br>"+(d.getMonth()+1)+"/"+d.getDate()+"<br>見られた "+(x.views||0)+"回 / 見つけられた "+(x.solves||0)+"回";
+  c.append(sv,t);g.appendChild(c)})}
+// ---- 起動時の通知（オフライン：localDBの回数を確認。サーバー版では起動時にサーバーへ問い合わせ） ----
+let NT=0;
+function notify(msg){const n=$("note");n.textContent=msg;n.classList.add("on");clearTimeout(NT);NT=setTimeout(()=>n.classList.remove("on"),5500)}
+$("note").onclick=()=>$("note").classList.remove("on");
+async function checkNotify(){let mine;try{mine=await DB.mine()}catch(e){return}
+ const sol=mine.filter(x=>(x.solves||0)>(x.nSolves||0)).sort((p,q)=>q.at-p.at),vw=mine.some(x=>(x.views||0)>(x.nViews||0));
+ let msg=null;if(sol.length)msg="誰かがあなたの"+ANIMALS[sol[0].animal][0]+"座を見つけました";else if(vw)msg="誰かがあなたの星座を見たようです";
+ if(!msg)return;notify(msg);try{await DB.notified(mine)}catch(e){console.warn(e)}}
+// ---- 起動 ----
+const MB=["goMake","goQuiz","goReview"];
+show("menu");MB.forEach(i=>$(i).disabled=true);$("count").textContent="つなげています";
+goOnline().then(()=>{MB.forEach(i=>$(i).disabled=false);setTimeout(checkNotify,300)});
+window.addEventListener("online",async()=>{if(DB===Local)await goOnline();checkNotify()});
+</script></body></html>
