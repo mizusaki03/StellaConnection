@@ -17,6 +17,7 @@ p.sub{color:var(--dim);text-align:center;margin:0 0 20px;line-height:1.7}
 button{font:inherit;font-weight:700;border:0;border-radius:12px;padding:10px;background:var(--btn);color:var(--btnink);font-size:15px;cursor:pointer}
 button.sec{background:var(--panel);color:var(--dim);border:1px solid #232b5e}
 button.tiny{align-self:center;background:transparent;color:#4a5180;font-size:12px;font-weight:500;padding:4px 10px}
+button.tiny .rs{font-size:10px}
 button.tiny:disabled{opacity:.6}
 button.sm{align-self:center;width:70%;font-size:14px;padding:10px;font-weight:500;color:#58608f;border-color:#1a2150}
 #menu{flex:1;display:flex;flex-direction:column;justify-content:center;gap:22px}
@@ -90,7 +91,7 @@ svg#sky{width:100%;height:auto;max-height:62dvh;background:radial-gradient(ellip
 <svg id="sky2" viewBox="0 0 300 400" style="width:100%;height:auto;max-height:62dvh;background:radial-gradient(ellipse at 50% 100%,#161c4a,#070a20 70%);border-radius:16px;display:block"></svg>
 <div class="q" id="qText"></div>
 <div class="row" id="choices"></div>
-<button class="tiny" id="report">よくない星座かも</button>
+<button class="tiny" id="report">よくない星座かも<span class="rs">（報告する）</span></button>
 <div class="result hide" id="res"></div>
 <button class="hide" id="again">もういちど</button>
 </section>
@@ -220,7 +221,7 @@ async function loadQuiz(){const tok=++QTok;let c=null,err=false;
  const W=[5,5,15,20,25,30];let x=Math.random()*100,slot=0;for(;slot<5&&x>=W[slot];slot++)x-=W[slot];
  const pool=others;pool.splice(slot,0,c.animal);
  Q={c,pool,n:0,cur:pool[0]};
- DB.inc(c.id,"views").catch(()=>{});$("report").classList.remove("hide");$("report").disabled=false;$("report").textContent="よくない星座かも";
+ DB.inc(c.id,"views").catch(()=>{});$("report").classList.remove("hide");$("report").disabled=false;$("report").innerHTML='よくない星座かも<span class="rs">（報告する）</span>';
  draw($("sky2"),c.pattern,c.lines,-1,null);
  $("res").classList.add("hide");$("again").classList.add("hide");ask()}
 function ask(){$("qNum").textContent="しつもん 1 / 5";$("qText").textContent="これは、どっちかな？";
