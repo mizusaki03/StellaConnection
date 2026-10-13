@@ -18,6 +18,7 @@ button{font:inherit;font-weight:700;border:0;border-radius:12px;padding:10px;bac
 button.sec{background:var(--panel);color:var(--dim);border:1px solid #232b5e}
 button.tiny{align-self:center;background:transparent;color:#4a5180;font-size:12px;font-weight:500;padding:4px 10px}
 button.tiny:disabled{opacity:.6}
+button.sm{align-self:center;width:70%;font-size:14px;padding:10px;font-weight:500;color:#58608f;border-color:#1a2150}
 button.on{background:#17384a;color:#9fe3f5;border-color:#2f7a96}
 svg text{font-family:inherit;font-weight:700}
 .halo{opacity:0}
@@ -38,6 +39,8 @@ button:focus-visible{outline:3px solid var(--line);outline-offset:2px}
 .top button{padding:6px 12px;font-size:14px}
 .task{text-align:center;font-size:14px;color:var(--ink)}
 .task b{font-size:18px}
+.task.glowin{animation:tin 1.8s ease-out both}
+@keyframes tin{0%{opacity:0;text-shadow:none}35%{opacity:1;color:#fffbe6;text-shadow:0 0 8px #fff3c8,0 0 18px #ffe9a8,0 0 34px #ffd979}100%{opacity:1;text-shadow:0 0 0 transparent}}
 svg#sky{width:100%;height:auto;max-height:62dvh;background:radial-gradient(ellipse at 50% 100%,#161c4a,#070a20 70%);border-radius:16px;touch-action:manipulation;display:block}
 .hint{color:var(--dim);font-size:12px;text-align:center;min-height:16px}
 .result{text-align:center;font-size:24px;font-weight:700;padding:4px;color:var(--star)}
@@ -51,10 +54,10 @@ svg#sky{width:100%;height:auto;max-height:62dvh;background:radial-gradient(ellip
 <p class="sub">星をつないで、どうぶつ座をつくろう。<br>だれかの星座を見て、なにか当てよう。</p>
 <div style="display:flex;flex-direction:column;gap:12px">
 <button class="big" id="goMake">星座をさがす（つくる）</button>
-<button class="big sec" id="goQuiz">夜空をながめる（あてる）</button>
-<button class="big sec" id="goReview">ふりかえる</button>
+<button class="big" id="goQuiz">夜空をながめる（あてる）</button>
+<button class="sec sm" id="goReview">ふりかえる</button>
 </div>
-<p class="sub" id="count" style="margin-top:20px"></p>
+<p class="sub" id="count" style="margin-top:28px;font-size:11px;color:#383f6c"></p>
 </section>
 
 <section id="make" class="hide" style="display:flex;flex-direction:column;gap:8px">
@@ -136,8 +139,8 @@ async function goOnline(){try{
   if(!app)app=initializeApp(firebaseConfig);
   const auth=getAuth(app);
   await Promise.race([signInAnonymously(auth),new Promise((_,j)=>setTimeout(()=>j(new Error("timeout")),8000))]);
-  uid=auth.currentUser.uid;db=getFirestore(app);col=collection(db,"constellations");DB=Remote;STATUS="オンライン";
- }catch(e){console.warn(e);DB=Local;STATUS="オフライン（この端末だけで遊べます）"}
+  uid=auth.currentUser.uid;db=getFirestore(app);col=collection(db,"constellations");DB=Remote;STATUS="オンライン状態です";
+ }catch(e){console.warn(e);DB=Local;STATUS="オフライン状態です"}
  if(!$("menu").classList.contains("hide"))$("count").textContent=STATUS}
 // ---- 共通 ----
 const $=id=>document.getElementById(id),NS="http://www.w3.org/2000/svg";
@@ -159,7 +162,8 @@ $("goMake").onclick=startMake;$("goQuiz").onclick=startQuiz;
 let M={},CH=false,busy=false,T=[],QT=[];
 function startMake(){show("make");newTask()}
 function newTask(){M={pat:rnd(PAT.length),an:rnd(ANIMALS.length),lines:[],sel:-1};
- $("task").innerHTML="お題：<b>"+ANIMALS[M.an][0]+"</b>";rm()}
+ $("task").innerHTML="お題：<b>"+ANIMALS[M.an][0]+"</b>";
+ const tk=$("task");tk.classList.remove("glowin");tk.style.transition="none";tk.style.opacity=1;void tk.offsetWidth;tk.classList.add("glowin");rm()}
 function rm(){draw($("sky"),M.pat,M.lines,M.sel,tapMake);$("found").disabled=M.lines.length<2||busy;$("undo").disabled=$("clear").disabled=busy;
  $("mCnt").textContent="線："+M.lines.length+"本";
  $("mHint").textContent=busy?"":M.sel<0?"星を2つ、つづけてタップすると線がひけるよ":"もうひとつ星をタップ（同じ星でキャンセル）"}
@@ -169,7 +173,7 @@ $("undo").onclick=()=>{if(M.lines.length)M.lines.pop();M.sel=-1;rm()};
 $("clear").onclick=()=>{M.lines=[];M.sel=-1;rm()};
 $("chain").onclick=()=>{CH=!CH;if(busy){}else M.sel=-1;$("chain").textContent="線を連続で："+(CH?"ON":"OFF");$("chain").classList.toggle("on",CH);if(!busy)rm()};
 function later(f,ms){T.push(setTimeout(f,ms))}
-function cancelSeq(){T.forEach(clearTimeout);T=[];busy=false;const k=$("sky");k.style.transition="none";k.style.opacity=1;k.classList.remove("glow")}
+function cancelSeq(){T.forEach(clearTimeout);T=[];busy=false;const tk=$("task");tk.classList.remove("glowin");tk.style.transition="none";tk.style.opacity=1;const k=$("sky");k.style.transition="none";k.style.opacity=1;k.classList.remove("glow")}
 $("found").onclick=()=>{if(busy||M.lines.length<2)return;
  repStreakReset();DB.add({pattern:M.pat,animal:M.an,lines:M.lines.map(l=>l.slice())}).catch(e=>console.warn(e));
  const nm=ANIMALS[M.an][0],sky=$("sky");
@@ -177,7 +181,7 @@ $("found").onclick=()=>{if(busy||M.lines.length<2)return;
  const t=el("text",{x:150,y:36,"text-anchor":"middle","font-size":26,fill:"#ffe9a8",stroke:"#070a20","stroke-width":4,"paint-order":"stroke"});
  t.textContent=nm+"座";t.style.opacity=0;t.style.transition="opacity 1s";sky.appendChild(t);
  later(()=>{t.style.opacity=1;sky.classList.add("glow")},50);
- later(()=>{sky.style.transition="opacity 1.8s";sky.style.opacity=0},3000);
+ later(()=>{sky.style.transition="opacity 1.8s";sky.style.opacity=0;const tk=$("task");tk.classList.remove("glowin");tk.style.transition="opacity 1.8s";tk.style.opacity=0},3000);
  later(()=>{sky.classList.remove("glow");newTask();sky.style.opacity=1},4900);
  later(()=>{busy=false;rm()},5800)};
 // ---- クイズモード ----
