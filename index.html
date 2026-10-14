@@ -108,6 +108,12 @@ svg#sky{width:100%;height:auto;max-height:62dvh;background:radial-gradient(ellip
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {getAuth,signInAnonymously} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {getFirestore,collection,addDoc,doc,getDoc,getDocs,updateDoc,deleteDoc,increment,query,where,orderBy,limit} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+// 自分の星座を自分で見た・当てた分を「見られた／見つけられた」に数えるか（公開版はfalse。1人でテストするときだけtrue）
+const COUNT_OWN=false;
+// App Check（不正アクセス対策）のreCAPTCHA v3サイトキー。空のままなら使わない
+// App Checkの種類："enterprise"＝reCAPTCHA Enterprise（秘密鍵なし）／"v3"＝従来のreCAPTCHA v3（秘密鍵あり）
+const APPCHECK_TYPE="enterprise";
+const APPCHECK_SITE_KEY="6Ld6ae4tAAAAAAS7IhQyhAKhiadpctG1AoHrtZ8t";
 const firebaseConfig={
   apiKey:"AIzaSyCwrOgbfYnXIGlBPOLmJt3qTtjjeDW6dUE",
   authDomain:"stella-animal.firebaseapp.com",
@@ -130,6 +136,9 @@ function valid(x){
  if(!Array.isArray(x.lines)||x.lines.length<2||x.lines.length>40)return false;
  const n=PAT[x.pattern].length;
  return x.lines.every(l=>Array.isArray(l)&&l.length===2&&Number.isInteger(l[0])&&Number.isInteger(l[1])&&l[0]>=0&&l[1]>=0&&l[0]<n&&l[1]<n&&l[0]!==l[1])}
+// 正解した星座のID（この端末に記録。出にくくするために使う）
+function sget(){try{return new Set(JSON.parse(localStorage.getItem("seiza_solved")||"[]"))}catch(e){return new Set(window._sol||[])}}
+function sadd(id){const a=[...sget(),id];window._sol=a;try{localStorage.setItem("seiza_solved",JSON.stringify(a))}catch(e){}}
 // ---- 保存先：Firestore（オンライン）／localStorage（オフライン） ----
 // どちらも同じ形で使えるようにしてある：add / random / mine / inc / report / notified
 const REPORT_LIMIT=2,STREAK_MAX=3,KEY="seiza_v1";
@@ -138,26 +147,38 @@ function lload(){let a=[];try{a=JSON.parse(localStorage.getItem(KEY)||"[]")}catc
 function lsave(a){window._mem=a;try{localStorage.setItem(KEY,JSON.stringify(a))}catch(e){}}
 const Local={
  async add(it){const a=lload(),t=Date.now();a.push({...it,at:t,id:String(t),mine:true,views:0,solves:0,reports:0,nViews:0,nSolves:0});lsave(a)},
- async random(){const a=lload().filter(valid);return a.length?a[rnd(a.length)]:null},
+ async random(){const a=lload().filter(valid);if(!a.length)return null;const sol=sget(),u=a.filter(x=>!sol.has(x.id)),p=u.length?u:a;return p[rnd(p.length)]},
  async mine(){return lload().filter(valid)},
  async inc(id,f){const a=lload(),x=a.find(y=>y.id===id);if(x){x[f]=(x[f]||0)+1;lsave(a)}},
  async report(id){const a=lload(),k=a.findIndex(y=>y.id===id);if(k<0)return;a[k].reports=(a[k].reports||0)+1;if(a[k].reports>=REPORT_LIMIT)a.splice(k,1);lsave(a)},
  async notified(items){const a=lload();items.forEach(it=>{const x=a.find(y=>y.id===it.id);if(x){x.nViews=it.views||0;x.nSolves=it.solves||0}});lsave(a)}
 };
-let app=null,db=null,uid=null,col=null;
+let app=null,db=null,uid=null,col=null,lastOwner=null; // lastOwner：直前に出した星座の作者
 function norm(d){const x=d.data()||{},r=Array.isArray(x.lines)?x.lines:[],l=[],n=v=>Number.isFinite(v)?v:0;
  for(let i=0;i+1<r.length;i+=2)l.push([r[i],r[i+1]]);
  return {...x,id:d.id,lines:l,at:n(x.createdAt),views:n(x.views),solves:n(x.solves),reports:n(x.reports),nViews:n(x.nViews),nSolves:n(x.nSolves),mine:x.owner===uid}}
+const BATCH_SIZE=20,BATCH_USES=10;
+let cache={docs:[],uses:0,early:false,shown:new Set()};
+async function fetchBatch(){const r=Math.random();
+ const s=await getDocs(query(col,where("random",">=",r),orderBy("random"),limit(BATCH_SIZE)));
+ let l=s.docs.map(norm).filter(valid);
+ if(s.size<BATCH_SIZE){const s2=await getDocs(query(col,where("random","<",r),orderBy("random","desc"),limit(BATCH_SIZE-s.size)));l=l.concat(s2.docs.map(norm).filter(valid))}
+ return l}
 const Remote={
  async add(it){await addDoc(col,{owner:uid,pattern:it.pattern,animal:it.animal,lines:it.lines.flat(),random:Math.random(),createdAt:Date.now(),views:0,solves:0,reports:0,nViews:0,nSolves:0})},
- // 乱数フィールドで「だいたいランダムな1件」を取る。他の人の星座を優先
- async random(){for(let t=0;t<3;t++){const r=Math.random();
-  let s=await getDocs(query(col,where("random",">=",r),orderBy("random"),limit(10)));
-  if(s.empty)s=await getDocs(query(col,where("random","<",r),orderBy("random","desc"),limit(10)));
-  if(s.empty)return null;
-  const l=s.docs.map(norm).filter(valid);if(!l.length)continue;
-  const o=l.filter(x=>!x.mine),p=o.length?o:l;return p[rnd(p.length)]}
-  return null},
+ // 乱数フィールドの近くから20件まとめて読み、10問ぶん使いまわす（読み込み量を減らすため）
+ // 優先：①まだ正解していない星座 ②他の人の星座で前回と別の人 ③前回と別の人 ④他の人の星座 ⑤なんでも
+ // （未正解が見つからない＝1巡したら正解済みも出してよい。同じ人しかいないときも連続してよい）
+ async random(){const sol=sget();
+  if(!cache.docs.length||cache.uses>=BATCH_USES)cache={docs:await fetchBatch(),uses:0,early:false,shown:new Set()};
+  else if(!cache.early&&!cache.docs.some(x=>!sol.has(x.id)))cache={docs:await fetchBatch(),uses:cache.uses,early:true,shown:new Set()}; // 読み込んだ分が全部正解済みなら1回だけ読み直す
+  if(!cache.docs.length)return null;
+  cache.uses++;
+  let pool=cache.docs.filter(x=>!cache.shown.has(x.id));if(!pool.length){cache.shown=new Set();pool=cache.docs}
+  const base=[x=>!x.mine&&x.owner!==lastOwner,x=>x.owner!==lastOwner,x=>!x.mine,()=>true];
+  const tiers=base.map(f=>x=>!sol.has(x.id)&&f(x)).concat(base);
+  const p=tiers.map(f=>pool.filter(f)).find(l=>l.length),c=p[rnd(p.length)];
+  cache.shown.add(c.id);return c},
  async mine(){const s=await getDocs(query(col,where("owner","==",uid)));return s.docs.map(norm).filter(valid)},
  async inc(id,f){await updateDoc(doc(db,"constellations",id),{[f]:increment(1)})},
  // 通報ポイント+1。2に達したら削除を送る
@@ -169,7 +190,9 @@ let DB=Local,connecting=false;
 async function syncLocal(){for(const x of lload().filter(y=>y.mine!==false&&valid(y))){try{await Remote.add(x);lsave(lload().filter(y=>y.id!==x.id))}catch(e){console.warn(e);break}}}
 async function goOnline(){if(connecting)return;connecting=true;try{
   if(!navigator.onLine)throw new Error("offline");
-  if(!app)app=initializeApp(firebaseConfig);
+  if(!app){app=initializeApp(firebaseConfig);
+   if(APPCHECK_SITE_KEY){const m=await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js");
+    m.initializeAppCheck(app,{provider:new (APPCHECK_TYPE==="v3"?m.ReCaptchaV3Provider:m.ReCaptchaEnterpriseProvider)(APPCHECK_SITE_KEY),isTokenAutoRefreshEnabled:true})}}
   const auth=getAuth(app);
   await Promise.race([signInAnonymously(auth),new Promise((_,j)=>setTimeout(()=>j(new Error("timeout")),8000))]);
   uid=auth.currentUser.uid;db=getFirestore(app);col=collection(db,"constellations");DB=Remote;STATUS="オンライン状態です";syncLocal();
@@ -258,8 +281,8 @@ async function loadQuiz(){const tok=++QTok;let c=null,err=false;
  // 正解が最初に選択肢へ出る質問の確率：1問目10%（2枠で5%ずつ）、2問目15%、3問目20%、4問目25%、5問目30%
  const W=[5,5,15,20,25,30];let x=Math.random()*100,slot=0;for(;slot<5&&x>=W[slot];slot++)x-=W[slot];
  const pool=others;pool.splice(slot,0,c.animal);
- Q={c,pool,n:0,cur:pool[0]};
- DB.inc(c.id,"views").catch(()=>{});$("report").classList.remove("hide");$("report").disabled=false;$("report").innerHTML='よくない星座かも<span class="rs">（報告する）</span>';
+ lastOwner=c.owner||null;Q={c,pool,n:0,cur:pool[0]};
+ if(COUNT_OWN||!c.mine)DB.inc(c.id,"views").catch(()=>{});$("report").classList.remove("hide");$("report").disabled=false;$("report").innerHTML='よくない星座かも<span class="rs">（報告する）</span>';
  try{draw($("sky2"),c.pattern,c.lines,-1,null)}catch(e){console.warn(e);$("sky2").innerHTML="";$("choices").innerHTML="";$("qNum").textContent="";$("qText").textContent="星座をよみこめませんでした。";$("report").classList.add("hide");$("again").classList.remove("hide");return}
  $("res").classList.add("hide");$("again").classList.add("hide");ask()}
 function ask(){$("qNum").textContent="しつもん 1 / 5";$("qText").textContent="これは、どっちかな？";
@@ -268,7 +291,7 @@ function ask(){$("qNum").textContent="しつもん 1 / 5";$("qText").textContent
  [0,1].forEach(k=>{const b=document.createElement("button");b.className="big";b.textContent=ANIMALS[Q.slot[k]][0];b.style.transition="opacity .9s";b.onclick=()=>pick(k);ch.appendChild(b)})}
 function pick(k){if(Q.lock)return;const q=Q,i=Q.slot[k];Q.cur=i;Q.n++;
  if(Q.n>=5){$("choices").innerHTML="";$("qNum").textContent="けっか";$("qText").textContent="";
-  repSolved();const ok=i===Q.c.animal;if(ok)DB.inc(Q.c.id,"solves").catch(()=>{});
+  repSolved();const ok=i===Q.c.animal;if(ok){if(COUNT_OWN||!Q.c.mine)DB.inc(Q.c.id,"solves").catch(()=>{});sadd(Q.c.id)}
   // 星座の上にラベル表示（作問モードの「○○座」表示と同じ方法）
   const sky=$("sky2"),t=el("text",{x:150,y:36,"text-anchor":"middle","font-size":26,fill:"#ffe9a8",stroke:"#070a20","stroke-width":4,"paint-order":"stroke"});
   t.textContent=ANIMALS[i][0]+(ok?"座":"座？");t.style.opacity=0;t.style.transition="opacity 1s";sky.appendChild(t);
