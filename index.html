@@ -123,6 +123,13 @@ const ANIMALS=[["いぬ"],["ねこ"],["あひる"],["ごりら"],["ぞう"],["�
 const SEEDS=[1203,4471,9027,2318,7766,5151,8890,3342,6609,1987];
 function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 const PAT=SEEDS.map(s=>{const r=rng(s),p=[];for(let i=0;i<3000&&p.length<42;i++){const x=18+r()*264,y=18+r()*364;if(p.every(q=>Math.hypot(q.x-x,q.y-y)>30))p.push({x,y,r:2+r()*2.6})}return p});
+// ---- データ検証：DBやlocalStorageから来た値が範囲内かを確認（範囲外は読み飛ばす） ----
+function valid(x){
+ if(!x||!Number.isInteger(x.pattern)||x.pattern<0||x.pattern>=PAT.length)return false;
+ if(!Number.isInteger(x.animal)||x.animal<0||x.animal>=ANIMALS.length)return false;
+ if(!Array.isArray(x.lines)||x.lines.length<2||x.lines.length>40)return false;
+ const n=PAT[x.pattern].length;
+ return x.lines.every(l=>Array.isArray(l)&&l.length===2&&Number.isInteger(l[0])&&Number.isInteger(l[1])&&l[0]>=0&&l[1]>=0&&l[0]<n&&l[1]<n&&l[0]!==l[1])}
 // ---- 保存先：Firestore（オンライン）／localStorage（オフライン） ----
 // どちらも同じ形で使えるようにしてある：add / random / mine / inc / report / notified
 const REPORT_LIMIT=2,STREAK_MAX=3,KEY="seiza_v1";
@@ -131,22 +138,27 @@ function lload(){let a=[];try{a=JSON.parse(localStorage.getItem(KEY)||"[]")}catc
 function lsave(a){window._mem=a;try{localStorage.setItem(KEY,JSON.stringify(a))}catch(e){}}
 const Local={
  async add(it){const a=lload(),t=Date.now();a.push({...it,at:t,id:String(t),mine:true,views:0,solves:0,reports:0,nViews:0,nSolves:0});lsave(a)},
- async random(){const a=lload();return a.length?a[rnd(a.length)]:null},
- async mine(){return lload()},
+ async random(){const a=lload().filter(valid);return a.length?a[rnd(a.length)]:null},
+ async mine(){return lload().filter(valid)},
  async inc(id,f){const a=lload(),x=a.find(y=>y.id===id);if(x){x[f]=(x[f]||0)+1;lsave(a)}},
  async report(id){const a=lload(),k=a.findIndex(y=>y.id===id);if(k<0)return;a[k].reports=(a[k].reports||0)+1;if(a[k].reports>=REPORT_LIMIT)a.splice(k,1);lsave(a)},
  async notified(items){const a=lload();items.forEach(it=>{const x=a.find(y=>y.id===it.id);if(x){x.nViews=it.views||0;x.nSolves=it.solves||0}});lsave(a)}
 };
 let app=null,db=null,uid=null,col=null;
-function norm(d){const x=d.data(),l=[];for(let i=0;i+1<x.lines.length;i+=2)l.push([x.lines[i],x.lines[i+1]]);return {...x,id:d.id,lines:l,at:x.createdAt,mine:x.owner===uid}}
+function norm(d){const x=d.data()||{},r=Array.isArray(x.lines)?x.lines:[],l=[],n=v=>Number.isFinite(v)?v:0;
+ for(let i=0;i+1<r.length;i+=2)l.push([r[i],r[i+1]]);
+ return {...x,id:d.id,lines:l,at:n(x.createdAt),views:n(x.views),solves:n(x.solves),reports:n(x.reports),nViews:n(x.nViews),nSolves:n(x.nSolves),mine:x.owner===uid}}
 const Remote={
  async add(it){await addDoc(col,{owner:uid,pattern:it.pattern,animal:it.animal,lines:it.lines.flat(),random:Math.random(),createdAt:Date.now(),views:0,solves:0,reports:0,nViews:0,nSolves:0})},
  // 乱数フィールドで「だいたいランダムな1件」を取る。他の人の星座を優先
- async random(){const r=Math.random();
+ async random(){for(let t=0;t<3;t++){const r=Math.random();
   let s=await getDocs(query(col,where("random",">=",r),orderBy("random"),limit(10)));
   if(s.empty)s=await getDocs(query(col,where("random","<",r),orderBy("random","desc"),limit(10)));
-  const l=s.docs.map(norm);if(!l.length)return null;const o=l.filter(x=>!x.mine),p=o.length?o:l;return p[rnd(p.length)]},
- async mine(){const s=await getDocs(query(col,where("owner","==",uid)));return s.docs.map(norm)},
+  if(s.empty)return null;
+  const l=s.docs.map(norm).filter(valid);if(!l.length)continue;
+  const o=l.filter(x=>!x.mine),p=o.length?o:l;return p[rnd(p.length)]}
+  return null},
+ async mine(){const s=await getDocs(query(col,where("owner","==",uid)));return s.docs.map(norm).filter(valid)},
  async inc(id,f){await updateDoc(doc(db,"constellations",id),{[f]:increment(1)})},
  // 通報ポイント+1。2に達したら削除を送る
  async report(id){const ref=doc(db,"constellations",id);await updateDoc(ref,{reports:increment(1)});const s=await getDoc(ref);if(s.exists()&&s.data().reports>=REPORT_LIMIT)await deleteDoc(ref)},
@@ -154,7 +166,7 @@ const Remote={
 };
 let DB=Local,connecting=false;
 // オフライン中に作った星座を、つながったらサーバーへ送る（送れたものから端末内を消す）
-async function syncLocal(){for(const x of lload().filter(y=>y.mine!==false)){try{await Remote.add(x);lsave(lload().filter(y=>y.id!==x.id))}catch(e){console.warn(e);break}}}
+async function syncLocal(){for(const x of lload().filter(y=>y.mine!==false&&valid(y))){try{await Remote.add(x);lsave(lload().filter(y=>y.id!==x.id))}catch(e){console.warn(e);break}}}
 async function goOnline(){if(connecting)return;connecting=true;try{
   if(!navigator.onLine)throw new Error("offline");
   if(!app)app=initializeApp(firebaseConfig);
@@ -248,7 +260,7 @@ async function loadQuiz(){const tok=++QTok;let c=null,err=false;
  const pool=others;pool.splice(slot,0,c.animal);
  Q={c,pool,n:0,cur:pool[0]};
  DB.inc(c.id,"views").catch(()=>{});$("report").classList.remove("hide");$("report").disabled=false;$("report").innerHTML='よくない星座かも<span class="rs">（報告する）</span>';
- draw($("sky2"),c.pattern,c.lines,-1,null);
+ try{draw($("sky2"),c.pattern,c.lines,-1,null)}catch(e){console.warn(e);$("sky2").innerHTML="";$("choices").innerHTML="";$("qNum").textContent="";$("qText").textContent="星座をよみこめませんでした。";$("report").classList.add("hide");$("again").classList.remove("hide");return}
  $("res").classList.add("hide");$("again").classList.add("hide");ask()}
 function ask(){$("qNum").textContent="しつもん 1 / 5";$("qText").textContent="これは、どっちかな？";
  Q.slot=[Q.pool[0],Q.pool[1]];Q.lock=false;
@@ -289,7 +301,7 @@ async function renderReview(){const g=$("rList");g.innerHTML='<p class="sub" sty
   const sv=el("svg",{viewBox:"0 0 300 400"});sv.style.cssText="width:100%;height:auto;display:block;border-radius:10px;background:radial-gradient(ellipse at 50% 100%,#161c4a,#070a20 70%)";
   draw(sv,x.pattern,x.lines,-1,null);
   const d=new Date(x.at),t=document.createElement("div");t.className="meta";
-  t.innerHTML="<b>"+ANIMALS[x.animal][0]+"座</b><br>"+(d.getMonth()+1)+"/"+d.getDate()+"<br>見られた "+(x.views||0)+"回 / 見つけられた "+(x.solves||0)+"回";
+  t.innerHTML="<b>"+ANIMALS[x.animal][0]+"座</b><br>"+(d.getMonth()+1)+"/"+d.getDate()+"<br>見られた "+(Number(x.views)||0)+"回 / 見つけられた "+(Number(x.solves)||0)+"回";
   c.append(sv,t);g.appendChild(c)})}
 // ---- 起動時の通知（オフライン：localDBの回数を確認。サーバー版では起動時にサーバーへ問い合わせ） ----
 let NT=0;
