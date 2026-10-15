@@ -43,6 +43,8 @@ svg text{font-family:inherit;font-weight:700}
 .meta b{font-size:15px;color:var(--ink)}
 #note{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 10px);max-width:456px;margin:0 auto;background:#131a44;color:var(--ink);border:1px solid #2a3470;border-radius:14px;padding:12px 14px;text-align:center;font-size:14px;opacity:0;pointer-events:none;transition:opacity 1.2s;z-index:10}
 #note.on{opacity:1;pointer-events:auto}
+#tip{position:fixed;left:0;right:0;top:0;bottom:0;display:flex;align-items:center;justify-content:center;padding:0 32px;text-align:center;font-size:18px;line-height:1.7;color:#d6d8ee;text-shadow:0 0 12px #070a20,0 0 4px #070a20;opacity:0;pointer-events:none;transition:opacity 1.2s;z-index:9}
+#tip.on{opacity:1}
 button:disabled{opacity:.35}
 button:focus-visible{outline:3px solid var(--line);outline-offset:2px}
 .row{display:flex;gap:8px}.row>*{flex:1}
@@ -104,10 +106,11 @@ svg#sky{width:100%;height:auto;max-height:62dvh;background:radial-gradient(ellip
 
 </div>
 <div id="note"></div>
+<div id="tip"></div>
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {getAuth,signInAnonymously} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {getFirestore,collection,addDoc,doc,getDoc,getDocs,updateDoc,deleteDoc,increment,query,where,orderBy,limit} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {getFirestore,collection,addDoc,doc,getDoc,getDocs,updateDoc,deleteDoc,increment,query,where,orderBy,limit,onSnapshot} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 // 自分の星座を自分で見た・当てた分を「見られた／見つけられた」に数えるか（公開版はfalse。1人でテストするときだけtrue）
 const COUNT_OWN=false;
 // App Check（不正アクセス対策）のreCAPTCHA v3サイトキー。空のままなら使わない
@@ -195,7 +198,7 @@ async function goOnline(){if(connecting)return;connecting=true;try{
     m.initializeAppCheck(app,{provider:new (APPCHECK_TYPE==="v3"?m.ReCaptchaV3Provider:m.ReCaptchaEnterpriseProvider)(APPCHECK_SITE_KEY),isTokenAutoRefreshEnabled:true})}}
   const auth=getAuth(app);
   await Promise.race([signInAnonymously(auth),new Promise((_,j)=>setTimeout(()=>j(new Error("timeout")),8000))]);
-  uid=auth.currentUser.uid;db=getFirestore(app);col=collection(db,"constellations");DB=Remote;STATUS="オンライン状態です";syncLocal();
+  uid=auth.currentUser.uid;db=getFirestore(app);col=collection(db,"constellations");DB=Remote;STATUS="オンライン状態です";syncLocal();startWatch();
  }catch(e){console.warn(e);DB=Local;STATUS="オフライン状態です"}
  connecting=false;
  if(!$("menu").classList.contains("hide"))$("count").textContent=STATUS}
@@ -217,7 +220,7 @@ $("goReview").onclick=()=>{show("review");renderReview()};
 $("goMake").onclick=startMake;$("goQuiz").onclick=startQuiz;
 // ---- 作問モード ----
 let M={},CH=false,busy=false,T=[],QT=[];
-function startMake(){show("make");newTask()}
+function startMake(){show("make");newTask();firstTip("tipMake","お題の星座を星空に描いてみよう")}
 function newTask(){M={pat:rnd(PAT.length),an:rnd(ANIMALS.length),lines:[],sel:-1};
  $("task").innerHTML="お題：<b>"+ANIMALS[M.an][0]+"</b>";
  const tk=$("task");tk.classList.remove("glowin");tk.style.transition="none";tk.style.opacity=1;void tk.offsetWidth;tk.classList.add("glowin");rm()}
@@ -234,7 +237,7 @@ let SBp=null; // 共有用の画像（PNG）を作る処理
 function setAfter(on){$("tools").classList.toggle("hide",on);$("found").classList.toggle("hide",on);$("after").classList.toggle("hide",!on)}
 function cancelSeq(){T.forEach(clearTimeout);T=[];busy=false;SBp=null;setAfter(false);const tk=$("task");tk.classList.remove("glowin");tk.style.transition="none";tk.style.opacity=1;const k=$("sky");k.style.transition="none";k.style.opacity=1;k.classList.remove("glow")}
 $("found").onclick=()=>{if(busy||M.lines.length<2)return;
- repStreakReset();DB.add({pattern:M.pat,animal:M.an,lines:M.lines.map(l=>l.slice())}).catch(e=>console.warn(e));
+ repStreakReset();ownCount=null;if(!flag("made")){setFlag("made");setTimeout(()=>notify("あなたの星座が誰かに届きそうです"),30000)}DB.add({pattern:M.pat,animal:M.an,lines:M.lines.map(l=>l.slice())}).catch(e=>console.warn(e));
  const nm=ANIMALS[M.an][0],sky=$("sky"),pat=M.pat,ln=M.lines.map(l=>l.slice());
  busy=true;M.sel=-1;rm();
  const t=el("text",{x:150,y:36,"text-anchor":"middle","font-size":26,fill:"#ffe9a8",stroke:"#070a20","stroke-width":4,"paint-order":"stroke"});
@@ -269,7 +272,7 @@ $("shareBtn").onclick=async()=>{const b=await (SBp||Promise.resolve(null)).catch
 // ---- クイズモード ----
 let Q={};
 let QTok=0;
-function startQuiz(){show("quiz");["sky2","qText","qNum","choices"].forEach(i=>$(i).innerHTML=i==="sky2"||i==="choices"||i==="qNum"||i==="qText"?"":"");
+function startQuiz(){firstTip("tipQuiz","この星座がなんのどうぶつか、あててみよう");show("quiz");["sky2","qText","qNum","choices"].forEach(i=>$(i).innerHTML=i==="sky2"||i==="choices"||i==="qNum"||i==="qText"?"":"");
  $("res").classList.add("hide");$("again").classList.add("hide");$("report").classList.add("hide");loadQuiz()}
 async function loadQuiz(){const tok=++QTok;let c=null,err=false;
  try{c=await DB.random()}catch(e){console.warn(e);err=true}
@@ -329,16 +332,32 @@ async function renderReview(){const g=$("rList");g.innerHTML='<p class="sub" sty
 // ---- 起動時の通知（オフライン：localDBの回数を確認。サーバー版では起動時にサーバーへ問い合わせ） ----
 let NT=0;
 function notify(msg){const n=$("note");n.textContent=msg;n.classList.add("on");clearTimeout(NT);NT=setTimeout(()=>n.classList.remove("on"),5500)}
+// 初めて入った画面で、画面の真ん中に説明を出す（1回だけ）
+function flag(k){try{return localStorage.getItem("seiza_"+k)||window["_f"+k]}catch(e){return window["_f"+k]}}
+function setFlag(k){window["_f"+k]="1";try{localStorage.setItem("seiza_"+k,"1")}catch(e){}}
+let TT=0;
+function tip(msg){const t=$("tip");t.textContent=msg;clearTimeout(TT);t.classList.add("on");TT=setTimeout(()=>t.classList.remove("on"),4200)}
+function firstTip(k,msg){if(flag(k))return;setFlag(k);setTimeout(()=>tip(msg),400)}
 $("note").onclick=()=>$("note").classList.remove("on");
-async function checkNotify(){let mine;try{mine=await DB.mine()}catch(e){return}
+let lastCheck=0,ownCount=null; // 最後に通知を確認した時刻／自分の星座の数（0なら確認を省く）
+let notifying=false;
+async function evalNotify(mine){ownCount=mine.length;
  const sol=mine.filter(x=>(x.solves||0)>(x.nSolves||0)).sort((p,q)=>q.at-p.at),vw=mine.some(x=>(x.views||0)>(x.nViews||0));
  let msg=null;if(sol.length)msg="誰かがあなたの"+ANIMALS[sol[0].animal][0]+"座を見つけました";else if(vw)msg="誰かがあなたの星座を見たようです";
- if(!msg)return;notify(msg);try{await DB.notified(mine)}catch(e){console.warn(e)}}
+ if(!msg||notifying)return;notifying=true;notify(msg);try{await DB.notified(mine)}catch(e){console.warn(e)}notifying=false}
+// オフライン（端末内）：1分ごとに確認
+async function checkNotify(){lastCheck=Date.now();let mine;try{mine=await DB.mine()}catch(e){return}await evalNotify(mine)}
+// オンライン：自分の星座をリアルタイム監視。最初に1回読んだあとは、変わった星座だけが届く
+let unsub=null;
+function startWatch(){if(unsub||DB!==Remote)return;
+ unsub=onSnapshot(query(col,where("owner","==",uid)),snap=>{evalNotify(snap.docs.map(norm).filter(valid))},e=>{console.warn(e);unsub=null})}
 // ---- 起動 ----
 const MB=["goQuiz","goReview"];
 show("menu");MB.forEach(i=>$(i).disabled=true);$("count").textContent="つなげています";
-goOnline().then(()=>{MB.forEach(i=>$(i).disabled=false);setTimeout(checkNotify,300)});
+goOnline().then(()=>{MB.forEach(i=>$(i).disabled=false);if(DB===Local)setTimeout(checkNotify,300)});
 // つながっていない間も裏で接続をやり直し続ける
-setInterval(async()=>{if(DB===Local&&!connecting){await goOnline();if(DB===Remote)checkNotify()}},15000);
-window.addEventListener("online",async()=>{if(DB===Local)await goOnline();checkNotify()});
+setInterval(async()=>{if(DB===Local&&!connecting)await goOnline()},15000);
+// オフライン中だけ：最後の確認から1分たったら、また確認する（画面が見えている間だけ）
+setInterval(()=>{if(DB!==Local||document.hidden||ownCount===0||Date.now()-lastCheck<60000)return;checkNotify()},5000);
+window.addEventListener("online",async()=>{if(DB===Local){await goOnline();if(DB===Local)checkNotify()}});
 </script></body></html>
